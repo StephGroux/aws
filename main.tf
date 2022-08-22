@@ -70,7 +70,7 @@ resource "aws_lb" "example" {
 }
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.example.arn
-  port              = 80
+  port              = var.alb_port
   protocol          = "HTTP"
 
   # By default, return a simple 404 page
