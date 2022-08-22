@@ -1,30 +1,12 @@
-variable "server_port" {
-  type        = number
-  description = "http port number"
-  default     = 8080
-}
+terraform {
+  required_version = ">= 1.0.0, < 2.0.0"
 
-variable "alb_port" {
-  type        = number
-  description = "load balancer port number"
-  default     = 80
-}
-
-
-data "aws_vpc" "default" {
-  default = true
-}
-
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
   }
-}
-
-output "alb_dns_name" {
-  value       = aws_lb.example.dns_name
-  description = "The domain name of the load balancer"
 }
 
 provider "aws" {
@@ -32,14 +14,16 @@ provider "aws" {
 }
 
 resource "aws_launch_configuration" "example" {
-  image_id      = "ami-052efd3df9dad4825"
-  instance_type = "t2.micro"
+  image_id        = "ami-052efd3df9dad4825"
+  instance_type   = "t2.micro"
+  security_groups = [aws_security_group.instance.id]
 
   user_data = <<-EOF
               #!/bin/bash
               echo "Hello, World" > index.html
               nohup busybox httpd -f -p ${var.server_port} &
               EOF
+
   # Required when using a launch configuration with an auto scaling group.
   lifecycle {
     create_before_destroy = true
@@ -62,15 +46,41 @@ resource "aws_autoscaling_group" "example" {
     propagate_at_launch = true
   }
 }
+
+resource "aws_security_group" "instance" {
+  name = var.instance_security_group_name
+
+  ingress {
+    from_port   = var.server_port
+    to_port     = var.server_port
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+
 resource "aws_lb" "example" {
-  name               = "terraform-asg-example"
+
+  name = var.alb_name
+
   load_balancer_type = "application"
   subnets            = data.aws_subnets.default.ids
   security_groups    = [aws_security_group.alb.id]
 }
+
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.example.arn
-  port              = var.alb_port
+  port              = 80
   protocol          = "HTTP"
 
   # By default, return a simple 404 page
@@ -82,6 +92,25 @@ resource "aws_lb_listener" "http" {
       message_body = "404: page not found"
       status_code  = 404
     }
+  }
+}
+
+resource "aws_lb_target_group" "asg" {
+
+  name = var.alb_name
+
+  port     = var.server_port
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+
+  health_check {
+    path                = "/"
+    protocol            = "HTTP"
+    matcher             = "200"
+    interval            = 15
+    timeout             = 3
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
   }
 }
 
@@ -100,30 +129,15 @@ resource "aws_lb_listener_rule" "asg" {
     target_group_arn = aws_lb_target_group.asg.arn
   }
 }
-resource "aws_lb_target_group" "asg" {
-  name     = "terraform-asg-example"
-  port     = var.server_port
-  protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default.id
-
-  health_check {
-    path                = "/"
-    protocol            = "HTTP"
-    matcher             = "200"
-    interval            = 15
-    timeout             = 3
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-  }
-}
 
 resource "aws_security_group" "alb" {
-  name = "terraform-example-alb"
+
+  name = var.alb_security_group_name
 
   # Allow inbound HTTP requests
   ingress {
-    from_port   = var.alb_port
-    to_port     = var.alb_port
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
