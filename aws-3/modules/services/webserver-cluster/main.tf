@@ -7,8 +7,9 @@ terraform {
       version = "~> 4.0"
     }
   }
+}
 
-  backend "s3" {
+/*   backend "s3" {
     bucket = "terraform-up-and-running-state-sg"
     key    = "stage/services/webserver-cluster/terraform.tfstate"
     region = "us-east-1"
@@ -16,7 +17,7 @@ terraform {
     dynamodb_table = "terraform-up-and-running-locks-sg"
     encrypt        = true
   }
-}
+} */
 
 
 resource "aws_launch_configuration" "example" {
@@ -26,8 +27,8 @@ resource "aws_launch_configuration" "example" {
 
   user_data = templatefile("user-data.sh", {
     server_port = var.server_port
-    db_address = data.terraform_remote_state.db.outputs.address
-    db_port = data.terraform_remote_state.db.outputs.port
+    db_address  = data.terraform_remote_state.db.outputs.address
+    db_port     = data.terraform_remote_state.db.outputs.port
   })
   # Required when using a launch configuration with an auto scaling group.
   lifecycle {
@@ -47,13 +48,13 @@ resource "aws_autoscaling_group" "example" {
 
   tag {
     key                 = "Name"
-    value               = "terraform-asg-example"
+    value               = var.cluster_name
     propagate_at_launch = true
   }
 }
 
 resource "aws_security_group" "instance" {
-  name = var.instance_security_group_name
+  name = "${var.cluster_name}-instance"
 
   ingress {
     from_port   = var.server_port
@@ -125,7 +126,7 @@ resource "aws_lb_listener_rule" "asg" {
 
 resource "aws_security_group" "alb" {
 
-  name = var.alb_security_group_name
+  name = "${var.cluster_name}-alb"
 
   # Allow inbound HTTP requests
   ingress {
@@ -160,8 +161,9 @@ data "terraform_remote_state" "db" {
   backend = "s3"
 
   config = {
-    bucket = "terraform-up-and-running-state-sg"
-    key    = "stage/data-stores/mysql/terraform.tfstate"
+    bucket = var.db_remote_state_bucket
+    key    = var.db_remotes_state_key
     region = "us-east-1"
   }
 }
+

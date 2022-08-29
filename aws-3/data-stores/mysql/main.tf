@@ -4,16 +4,17 @@ provider "aws" {
 
 terraform {
   backend "s3" {
-    # Replace this with your bucket name!
-    bucket         = "terraform-up-and-running-state-sg"
-    key            = "stage/data-stores/mysql/terraform.tfstate"
-    region         = "us-east-1"
+    #   # Replace this with your bucket name!
+    bucket = "terraform-up-and-running-state-sg"
+    key    = "stage/data-stores/mysql/terraform.tfstate"
+    region = "us-east-1"
 
     # Replace this with your DynamoDB table name!
     dynamodb_table = "terraform-up-and-running-locks-sg"
     encrypt        = true
   }
 }
+
 
 resource "aws_db_instance" "example" {
   identifier_prefix   = "terraform-up-and-running"
