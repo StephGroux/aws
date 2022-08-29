@@ -12,4 +12,14 @@ variable "db_remote_state_key" {
   description = "The path for the database's remote state in S3"
   type        = string
 }
+# ---------------------------------------------------------------------------------------------------------------------
+# OPTIONAL PARAMETERS
+# These parameters have reasonable defaults.
+# ---------------------------------------------------------------------------------------------------------------------
+
+variable "server_port" {
+  description = "The port the server will use for HTTP requests"
+  type        = number
+  default     = 8080
+}
 

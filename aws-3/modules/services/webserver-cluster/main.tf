@@ -25,7 +25,7 @@ resource "aws_launch_configuration" "example" {
   instance_type   = "t2.micro"
   security_groups = [aws_security_group.instance.id]
 
-  user_data = templatefile("user-data.sh", {
+  user_data = templatefile("${path.module}/user-data.sh", {
     server_port = var.server_port
     db_address  = data.terraform_remote_state.db.outputs.address
     db_port     = data.terraform_remote_state.db.outputs.port
@@ -65,7 +65,7 @@ resource "aws_security_group" "instance" {
 }
 resource "aws_lb" "example" {
 
-  name = var.alb_name
+  name = var.cluster_name
 
   load_balancer_type = "application"
   subnets            = data.aws_subnets.default.ids
@@ -91,7 +91,7 @@ resource "aws_lb_listener" "http" {
 
 resource "aws_lb_target_group" "asg" {
 
-  name = var.alb_name
+  name = var.cluster_name
 
   port     = var.server_port
   protocol = "HTTP"
@@ -162,7 +162,7 @@ data "terraform_remote_state" "db" {
 
   config = {
     bucket = var.db_remote_state_bucket
-    key    = var.db_remotes_state_key
+    key    = var.db_remote_state_key
     region = "us-east-1"
   }
 }
